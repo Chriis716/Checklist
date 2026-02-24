@@ -1,7 +1,7 @@
-Exception calling "ShowDialog" with "0" argument(s): "Method invocation failed because
-[System.Management.Automation.PSObject] does not contain a method named 'op_Addition'."
+Exception calling "ShowDialog" with "0" argument(s): "The property 'Count' cannot be found on this object. Verify that
+the property exists."
 At C:\Temp\CreateCheckList\CreateCheckList.ps1:427 char:1
 + $null = $window.ShowDialog()
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
-    + FullyQualifiedErrorId : RuntimeException
+    + FullyQualifiedErrorId : PropertyNotFoundException
