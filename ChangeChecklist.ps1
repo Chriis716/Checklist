@@ -3,98 +3,130 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ----------------------------
-# Paths
-# ----------------------------
+# ============================================================
+# CONFIG (keep these variable names consistent)
+# ============================================================
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$XamlPath   = Join-Path $ScriptRoot 'UI\ChangeChecklist.xaml'
-if (-not (Test-Path $XamlPath)) { throw "XAML not found: $XamlPath" }
 
-# ----------------------------
-# Storage layout (maintainable)
-# ----------------------------
-$AppRoot        = Join-Path $env:APPDATA 'ChangeChecklist'
-$DefinitionsDir = Join-Path $AppRoot 'definitions'
-$StateDir       = Join-Path $AppRoot 'state'
-$null = New-Item -ItemType Directory -Path $DefinitionsDir -Force
+# XAML is separate
+$XamlPath = Join-Path $ScriptRoot 'UI\ChangeChecklist.xaml'
+
+# Definition JSON is separate
+$DefinitionPath = Join-Path $ScriptRoot 'data\default.definition.json'
+
+# State is per ChangeID in AppData
+$StateDir = Join-Path $env:APPDATA 'ChangeChecklist\state'
 $null = New-Item -ItemType Directory -Path $StateDir -Force
 
-$DefaultDefinitionPath = Join-Path $DefinitionsDir 'default.definition.json'
-
-# Change Request URL template: replace with your real system.
-# Use "{id}" placeholder.
+# Change Request link template (ChangeID replaces {id})
 $ChangeUrlTemplate = "https://example.service-now.com/nav_to.do?uri=change_request.do?sysparm_query=number={id}"
 
-function New-DefaultDefinition {
-    @{
-        title    = "Change Checklist"
-        sections = @(
-            @{
-                name  = "Pre Change Request"
-                items = @(
-                    @{ id="pre-001"; text="Confirm approval / authorization recorded"; linkText=""; linkUrl="" },
-                    @{ id="pre-002"; text="Notify impacted users / distribution list";  linkText="Template"; linkUrl="https://example.com/notify-template" },
-                    @{ id="pre-003"; text="Rollback plan documented and verified";     linkText=""; linkUrl="" }
-                )
-            },
-            @{
-                name  = "Begin Implementation on the Change Request"
-                items = @(
-                    @{ id="impl-001"; text="Start maintenance window / confirm monitoring in place"; linkText=""; linkUrl="" },
-                    @{ id="impl-002"; text="Execute implementation steps per runbook";             linkText="Runbook"; linkUrl="https://example.com/runbook" },
-                    @{ id="impl-003"; text="Post-change validation / smoke tests complete";        linkText=""; linkUrl="" }
-                )
-            }
-        )
-    }
+# ============================================================
+# Safety checks
+# ============================================================
+if (-not (Test-Path $XamlPath)) {
+    throw "XAML not found: $XamlPath`nExpected: UI\ChangeChecklist.xaml (relative to script)"
+}
+if (-not (Test-Path $DefinitionPath)) {
+    throw "Definition JSON not found: $DefinitionPath`nExpected: data\default.definition.json (relative to script)"
 }
 
-function Ensure-DefaultDefinition {
-    if (-not (Test-Path $DefaultDefinitionPath)) {
-        (New-DefaultDefinition) | ConvertTo-Json -Depth 12 | Set-Content -Path $DefaultDefinitionPath -Encoding UTF8
-    }
-}
-
+# ============================================================
+# Helpers: Definition + State
+# ============================================================
 function Load-Definition {
-    Ensure-DefaultDefinition
-    Get-Content -Path $DefaultDefinitionPath -Raw | ConvertFrom-Json
+    # Always loads from $DefinitionPath
+    $definition = Get-Content -Path $DefinitionPath -Raw | ConvertFrom-Json
+
+    # Optional: If JSON includes changeUrlTemplate, we will copy it into $ChangeUrlTemplate
+    # (Variable name stays the same.)
+    if ($null -ne $definition.changeUrlTemplate -and -not [string]::IsNullOrWhiteSpace([string]$definition.changeUrlTemplate)) {
+        $script:ChangeUrlTemplate = [string]$definition.changeUrlTemplate
+    }
+
+    return $definition
 }
 
 function Get-StatePath([string]$ChangeId) {
-    $safe = ($ChangeId -replace '[^\w\-]', '_')
-    Join-Path $StateDir "$safe.state.json"
+    if ([string]::IsNullOrWhiteSpace($ChangeId)) { return $null }
+    $safe = ($ChangeId.Trim() -replace '[^\w\-]', '_')
+    return (Join-Path $StateDir "$safe.state.json")
 }
 
-function New-BlankState([string]$ChangeId) {
+function New-BlankState([string]$ChangeId, [object]$definition) {
     [pscustomobject]@{
-        changeId   = $ChangeId
-        savedUtc   = $null
-        itemStates = @{}
-        window     = @{ top=$null; left=$null; width=$null; height=$null }
+        changeId          = $ChangeId
+        definitionId      = if ($definition.definitionId) { [string]$definition.definitionId } else { "default" }
+        definitionVersion = if ($definition.definitionVersion) { [int]$definition.definitionVersion } else { 1 }
+        savedUtc          = $null
+        itemStates        = @{}   # id -> @{ isChecked=bool; checkedUtc=string|null; notes=string }
+        window            = @{ top=$null; left=$null; width=$null; height=$null }
     }
 }
 
-function Load-State([string]$ChangeId) {
+function Load-State([string]$ChangeId, [object]$definition) {
     $path = Get-StatePath $ChangeId
-    if (Test-Path $path) { return (Get-Content -Path $path -Raw | ConvertFrom-Json) }
-    New-BlankState -ChangeId $ChangeId
+    if ($path -and (Test-Path $path)) {
+        try {
+            $state = Get-Content -Path $path -Raw | ConvertFrom-Json
+        } catch {
+            # If state got corrupted, start fresh rather than crashing
+            $state = New-BlankState -ChangeId $ChangeId -definition $definition
+        }
+
+        # Ensure these exist and are up-to-date
+        if (-not $state.PSObject.Properties.Name.Contains('definitionId')) {
+            $state | Add-Member -MemberType NoteProperty -Name definitionId -Value (if ($definition.definitionId) { [string]$definition.definitionId } else { "default" })
+        }
+        if (-not $state.PSObject.Properties.Name.Contains('definitionVersion')) {
+            $state | Add-Member -MemberType NoteProperty -Name definitionVersion -Value (if ($definition.definitionVersion) { [int]$definition.definitionVersion } else { 1 })
+        }
+        if (-not $state.PSObject.Properties.Name.Contains('itemStates') -or $null -eq $state.itemStates) {
+            $state | Add-Member -MemberType NoteProperty -Name itemStates -Value (@{})
+        }
+        if (-not $state.PSObject.Properties.Name.Contains('window') -or $null -eq $state.window) {
+            $state | Add-Member -MemberType NoteProperty -Name window -Value (@{ top=$null; left=$null; width=$null; height=$null })
+        }
+
+        return $state
+    }
+
+    return (New-BlankState -ChangeId $ChangeId -definition $definition)
 }
 
 function Save-State([object]$state) {
+    if (-not $state) { return }
     $state.savedUtc = ([DateTime]::UtcNow.ToString("o"))
     $path = Get-StatePath $state.changeId
+    if (-not $path) { return }
+
     $state | ConvertTo-Json -Depth 12 | Set-Content -Path $path -Encoding UTF8
+}
+
+function Ensure-ItemState([object]$state, [string]$id) {
+    if (-not $state) { return }
+    if ([string]::IsNullOrWhiteSpace($id)) { return }
+
+    # itemStates is a PSCustomObject from JSON; we can add NoteProperty dynamically
+    if (-not $state.itemStates.$id) {
+        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value ([pscustomobject]@{
+            isChecked  = $false
+            checkedUtc = $null
+            notes      = ""
+        })
+    }
 }
 
 function Open-ChangeLink([string]$ChangeId) {
     if ([string]::IsNullOrWhiteSpace($ChangeId)) { return }
-    $url = $ChangeUrlTemplate.Replace('{id}', [uri]::EscapeDataString($ChangeId.Trim()))
+    $id = $ChangeId.Trim()
+    $url = $ChangeUrlTemplate.Replace('{id}', [uri]::EscapeDataString($id))
     try { Start-Process $url | Out-Null } catch {}
 }
 
-# ----------------------------
-# ViewModel item
-# ----------------------------
+# ============================================================
+# ViewModel Item (INotifyPropertyChanged)
+# ============================================================
 Add-Type -TypeDefinition @"
 using System;
 using System.ComponentModel;
@@ -120,7 +152,7 @@ public class ChecklistItem : INotifyPropertyChanged
         set { _notes = value; OnPropertyChanged("Notes"); }
     }
 
-    public string CheckedUtc { get; set; }
+    public string CheckedUtc { get; set; } // ISO string or null
 
     public bool HasLink
     {
@@ -145,14 +177,13 @@ public class ChecklistItem : INotifyPropertyChanged
 }
 "@ -ReferencedAssemblies 'System.dll'
 
-# ----------------------------
-# Load XAML from file
-# ----------------------------
+# ============================================================
+# Load XAML (separate file) and find controls
+# ============================================================
 [xml]$xaml = Get-Content -Path $XamlPath -Raw
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-# Named controls
 $tabs         = $window.FindName('Tabs')
 $txtTitle     = $window.FindName('TxtTitle')
 $txtChangeId  = $window.FindName('TxtChangeId')
@@ -165,19 +196,12 @@ $btnOpenState = $window.FindName('BtnOpenState')
 
 function Set-Status([string]$msg) { $txtStatus.Text = $msg }
 
-$definition      = Load-Definition
-$currentState    = $null
-$allSections     = @()
-
-function Ensure-ItemState([object]$state, [string]$id) {
-    if (-not $state.itemStates.$id) {
-        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value ([pscustomobject]@{
-            isChecked  = $false
-            checkedUtc = $null
-            notes      = ""
-        })
-    }
-}
+# ============================================================
+# Runtime objects
+# ============================================================
+$definition   = Load-Definition
+$currentState = $null
+$allSections  = @()
 
 function Clear-Tabs {
     $tabs.Items.Clear()
@@ -203,16 +227,17 @@ function Build-Tabs([object]$state) {
             $st = $state.itemStates.$($it.id)
 
             $ci = New-Object ChecklistItem
-            $ci.Id         = $it.id
-            $ci.Text       = $it.text
-            $ci.LinkText   = $it.linkText
-            $ci.LinkUrl    = $it.linkUrl
+            $ci.Id         = [string]$it.id
+            $ci.Text       = [string]$it.text
+            $ci.LinkText   = [string]$it.linkText
+            $ci.LinkUrl    = [string]$it.linkUrl
             $ci.IsChecked  = [bool]$st.isChecked
             $ci.CheckedUtc = $st.checkedUtc
             $ci.Notes      = [string]$st.notes
 
             $ci.add_PropertyChanged({
                 param($sender, $args)
+
                 if (-not $currentState) { return }
 
                 Ensure-ItemState $currentState $sender.Id
@@ -242,7 +267,7 @@ function Build-Tabs([object]$state) {
         }
 
         $tab = New-Object System.Windows.Controls.TabItem
-        $tab.Header = $section.name
+        $tab.Header = [string]$section.name
 
         $sv = New-Object System.Windows.Controls.ScrollViewer
         $sv.VerticalScrollBarVisibility = 'Auto'
@@ -266,13 +291,17 @@ function Build-Tabs([object]$state) {
         $tab.Content = $sv
         $tabs.Items.Add($tab) | Out-Null
 
-        $allSections += [pscustomobject]@{ Name=$section.name; Items=$items; Progress=$progress }
+        $allSections += [pscustomobject]@{
+            Name     = [string]$section.name
+            Items    = $items
+            Progress = $progress
+        }
     }
 
     Update-SectionProgress
 }
 
-# Hyperlink handler
+# Hyperlink handler (for checklist item links)
 $window.AddHandler(
     [System.Windows.Documents.Hyperlink]::RequestNavigateEvent,
     [System.Windows.Navigation.RequestNavigateEventHandler]{
@@ -283,15 +312,31 @@ $window.AddHandler(
 )
 
 function Load-Change([string]$ChangeId) {
-    if ([string]::IsNullOrWhiteSpace($ChangeId)) { Set-Status "Enter a ChangeID first."; return }
+    if ([string]::IsNullOrWhiteSpace($ChangeId)) {
+        Set-Status "Enter a ChangeID first."
+        return
+    }
+
+    # Reload definition each time in case you edited the JSON
+    $script:definition = Load-Definition
+
     $id = $ChangeId.Trim()
+    $currentState = Load-State -ChangeId $id -definition $definition
 
-    $currentState = Load-State $id
-    $txtTitle.Text = "$($definition.title) — $id"
+    # Ensure any new items in the template get state entries
+    foreach ($section in $definition.sections) {
+        foreach ($it in $section.items) {
+            Ensure-ItemState $currentState $it.id
+        }
+    }
 
+    # Title
+    $txtTitle.Text = "$([string]$definition.title) — $id"
+
+    # Build UI
     Build-Tabs $currentState
 
-    # Restore window geometry per ChangeID
+    # Restore window geometry (per ChangeID)
     if ($currentState.window.width -and $currentState.window.height) {
         $window.Width  = [double]$currentState.window.width
         $window.Height = [double]$currentState.window.height
@@ -306,22 +351,30 @@ function Load-Change([string]$ChangeId) {
 }
 
 function Save-Current {
-    if (-not $currentState) { Set-Status "Nothing loaded yet."; return }
+    if (-not $currentState) {
+        Set-Status "Nothing loaded yet."
+        return
+    }
     Save-State $currentState
     Set-Status "Saved: $($currentState.changeId)"
 }
 
+# Buttons
 $btnLoad.Add_Click({ Load-Change $txtChangeId.Text })
 $btnSave.Add_Click({ Save-Current })
 $btnOpenCR.Add_Click({ Open-ChangeLink $txtChangeId.Text })
 
 $btnEditDef.Add_Click({
-    Start-Process notepad.exe $DefaultDefinitionPath | Out-Null
-    [System.Windows.MessageBox]::Show(
-        "Edit the template JSON and save it. Then click Load again to refresh.",
-        "Edit Template"
-    ) | Out-Null
-    try { $definition = Load-Definition; Set-Status "Template reloaded. Click Load." } catch { Set-Status "Template edited. Click Load." }
+    try {
+        Start-Process notepad.exe $DefinitionPath | Out-Null
+        [System.Windows.MessageBox]::Show(
+            "Edit the template JSON and save it. Then click Load to refresh a ChangeID.",
+            "Edit Template"
+        ) | Out-Null
+        Set-Status "Template opened: $DefinitionPath"
+    } catch {
+        Set-Status "Could not open template."
+    }
 })
 
 $btnOpenState.Add_Click({
@@ -337,6 +390,7 @@ $btnOpenState.Add_Click({
     Start-Process notepad.exe $path | Out-Null
 })
 
+# Save window geometry on close
 $window.add_Closing({
     if ($currentState) {
         $currentState.window.left   = $window.Left
@@ -347,7 +401,7 @@ $window.add_Closing({
     }
 })
 
-# Default starter
+# Default starter (edit if you want)
 $txtChangeId.Text = "CHG0000000"
 Set-Status "Enter ChangeID and click Load."
 
