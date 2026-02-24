@@ -1,43 +1,22 @@
-function Sync-UiToState {
-    if (-not $script:currentState) { return }
+<CheckBox Grid.Column="0"
+          VerticalAlignment="Top"
+          IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+          Margin="2,2,0,0"
+          Checked="ChecklistCheckBox_Changed"
+          Unchecked="ChecklistCheckBox_Changed"/>
 
-    foreach ($sec in $script:allSections) {
-        foreach ($item in $sec.Items) {
-
-            $itemId = [string]$item.Id
-            Ensure-ItemState $script:currentState $itemId
-            $entry = Get-ItemStateEntry -state $script:currentState -id $itemId
-
-            $entry.isChecked  = [bool]$item.IsChecked
-            $entry.checkedUtc = $item.CheckedUtc
-            $entry.notes      = [string]$item.Notes
-
-            Set-ItemStateEntry -state $script:currentState -id $itemId -value $entry
-        }
+$window.AddHandler(
+    [System.Windows.Controls.Primitives.ToggleButton]::CheckedEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($sender, $e)
+        Update-SectionProgress
     }
-}
+)
 
-
-
-function Save-Current {
-    if (-not $script:currentState) {
-        Set-Status "Nothing loaded yet."
-        return
+$window.AddHandler(
+    [System.Windows.Controls.Primitives.ToggleButton]::UncheckedEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($sender, $e)
+        Update-SectionProgress
     }
-
-    Sync-UiToState
-    Save-State $script:currentState
-    Set-Status "Saved: $($script:currentState.changeId)"
-}
-
-$window.add_Closing({
-    if ($script:currentState) {
-        $script:currentState.window.left   = $window.Left
-        $script:currentState.window.top    = $window.Top
-        $script:currentState.window.width  = $window.Width
-        $script:currentState.window.height = $window.Height
-
-        Sync-UiToState
-        Save-State $script:currentState
-    }
-})
+)
