@@ -1,6 +1,37 @@
+if ($args.PropertyName -eq 'IsChecked') {
+
+    $entry.isChecked = [bool]$sender.IsChecked
+
+    if ($sender.IsChecked) {
+        $sender.CheckedUtc = ([DateTime]::UtcNow.ToString("o"))
+        $entry.checkedUtc  = $sender.CheckedUtc
+    } else {
+        $sender.CheckedUtc = $null
+        $entry.checkedUtc  = $null
+    }
+
+    Set-ItemStateEntry -state $script:currentState -id $sid -value $entry
+    Save-State $script:currentState
+    Set-Status "Saved: $($script:currentState.changeId)"
+
+    # Progress updates in real time via the window AddHandler too,
+    # but calling it here is fine and immediate.
+    Update-SectionProgress
+    return
+}
+
+if ($args.PropertyName -eq 'Notes') {
+    $entry.notes = [string]$sender.Notes
+    Set-ItemStateEntry -state $script:currentState -id $sid -value $entry
+    Save-State $script:currentState
+    Set-Status "Saved: $($script:currentState.changeId)"
+    return
+}
+
+
 function Update-SectionProgress {
 
-    if (-not $window -or -not $window.Dispatcher) { return }
+    if (-not $script:allSections -or $script:allSections.Count -eq 0) { return }
 
     $window.Dispatcher.BeginInvoke([Action]{
         foreach ($sec in $script:allSections) {
