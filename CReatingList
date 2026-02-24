@@ -2,6 +2,7 @@
   "definitionId": "default",
   "definitionVersion": 1,
   "title": "Change Checklist",
+  "changeUrlTemplate": "https://yourit.va.gov/nav_to.do?uri=change_request.do?sysparm_query=number={id}",
   "sections": [
     {
       "name": "Pre Change Request",
