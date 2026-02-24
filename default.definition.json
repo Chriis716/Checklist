@@ -2,11 +2,10 @@
   "definitionId": "default",
   "definitionVersion": 2,
   "title": "IA/IU Account Change Checklist",
-  "changeUrlTemplate": "https://yourit.va.gov/nav_to.do?uri=change_request.do?sysparm_query=number={id}",
   "sections": [
     {
       "name": "Pre Change Request",
-      "intro": "These steps may begin starting 26 Jan. Create the Change Request at least 2 weeks prior. Assign your name to the ctasks under the workflow tab after submission. Send site email notice at least 2 weeks prior.\n\nReference Cookbook: Password Change (v1.7) – Network Locations (2005.2)\nReference: Image Share Permissions\n\nNOTE: Do not edit nor remove the VHA accounts at this time.",
+      "intro": "Cookbooks / References:\n- Password Change (v1.7) – Network Locations (2005.2)\n- Image Share Permissions\n\nNotes:\n- Can start these steps starting 26 Jan\n- Create Change Request at least 2 weeks prior\n- Assign your name to ctasks before requesting approval\n- Send site email notice at least 2 weeks prior\n- Do NOT edit nor remove the VHA accounts at this time",
       "items": [
         {
           "id": "pre-001",
@@ -28,7 +27,7 @@
         },
         {
           "id": "pre-004",
-          "text": "Schedule date/time with Clinicomp personnel for post account reconciliation actions.",
+          "text": "Schedule date/time with Clinicomp personnel to perform post account reconciliation actions.",
           "linkText": "",
           "linkUrl": ""
         }
@@ -36,7 +35,7 @@
     },
     {
       "name": "Begin Implementation on the Change Request",
-      "intro": "These tasks can be completed during business hours unless otherwise noted.\n\nPrimary References:\n- Cookbook – Password Change\n- Cookbook – Change IA and IU Accounts\n\nSome tasks must be completed during scheduled downtime.",
+      "intro": "Primary Cookbooks:\n- Password Change (version 1.x)\n- Change IA and IU Accounts (version 1.x)\n\nGeneral Notes:\n- These tasks can be completed during business hours unless otherwise specified\n- Some tasks must be completed during scheduled downtime\n- Background Processor credential update should be done early in the morning",
       "items": [
         {
           "id": "impl-001",
@@ -46,7 +45,7 @@
         },
         {
           "id": "impl-002",
-          "text": "Add OITAppAdminsCIT3SVC security group to local Administrators and Users on BGPs and DIGs/TXTs servers.",
+          "text": "Add OITAppAdminsCIT3SVC security group to local Administrators and Users groups on BGPs and DIGs/TXTs servers.",
           "linkText": "Server Permissions",
           "linkUrl": ""
         },
@@ -64,19 +63,19 @@
         },
         {
           "id": "impl-005",
-          "text": "Create C:\\DICOM\\Scratch folders and confirm IA accounts have full control.",
+          "text": "Create C:\\DICOM\\Scratch folders on all DIGs/TXT servers and confirm IA accounts have full control permissions.",
           "linkText": "Update Scratch Directory",
           "linkUrl": ""
         },
         {
           "id": "impl-006",
-          "text": "Update Scratch folder in MUMPs on DIGs/TXTs servers.",
+          "text": "Update the Scratch folder in MUMPs on DIGs/TXTs servers.",
           "linkText": "Update Scratch Directory",
           "linkUrl": ""
         },
         {
           "id": "impl-007",
-          "text": "Update annotated Network Locations using old VHAxxxIA/IU accounts.",
+          "text": "Update any Network Locations previously annotated utilizing the old VHAxxxIA/IU accounts.",
           "linkText": "Network Locations (2005.2)",
           "linkUrl": ""
         },
@@ -88,19 +87,19 @@
         },
         {
           "id": "impl-009",
-          "text": "Update IRIS service using new OITxxxIA account.",
+          "text": "Update the IRIS service using the new OITxxxIA account.",
           "linkText": "Intersystems (IRIS Service)",
           "linkUrl": ""
         },
         {
           "id": "impl-010",
-          "text": "Sign out, update RDCM credentials, sign in with new account and restart services. Verify functionality.",
+          "text": "Sign out of servers, update RDCM with new OITxxxIA credentials, sign back in with new account and restart services. Verify functionality.",
           "linkText": "Final Steps",
           "linkUrl": ""
         },
         {
           "id": "impl-011",
-          "text": "Update IRIS Management Portal accounts.",
+          "text": "Update Iris Management Portal accounts.",
           "linkText": "IRIS Management Portal",
           "linkUrl": ""
         },
@@ -118,13 +117,13 @@
         },
         {
           "id": "impl-014",
-          "text": "Update VA\\OITxxxIU credentials in BGP Imaging Site Parameters (do early morning).",
+          "text": "Update VA\\OITxxxIU credentials in BGP Imaging Site Parameters.",
           "linkText": "Background Processor",
           "linkUrl": ""
         },
         {
           "id": "impl-015",
-          "text": "Change VistA Verify Code (Method 1) using OITxxxIU2 password.",
+          "text": "Change the VistA Verify Code (Method 1) using OITxxxIU2 password for Verify. Site may need to rerun HDIG Installation Wizard to update VistA credentials.",
           "linkText": "VistA Service Account",
           "linkUrl": ""
         },
@@ -136,13 +135,13 @@
         },
         {
           "id": "impl-017",
-          "text": "Update MSP referencing correct accounts in CyberArk.",
+          "text": "Update MSP indicating which accounts to reference in CyberArk.",
           "linkText": "",
           "linkUrl": ""
         },
         {
           "id": "impl-018",
-          "text": "Close open ctasks and complete Change Request.",
+          "text": "Close out open ctasks. Review and close remaining ctasks to complete the Change Request.",
           "linkText": "",
           "linkUrl": ""
         }
