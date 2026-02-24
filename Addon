@@ -1,3 +1,20 @@
+# Real-time progress update when checkboxes change (safe now that allSections exists)
+$window.AddHandler(
+    [System.Windows.Controls.Primitives.ToggleButton]::CheckedEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($sender, $e)
+        if ($script:allSections) { Update-SectionProgress }
+    }
+)
+
+$window.AddHandler(
+    [System.Windows.Controls.Primitives.ToggleButton]::UncheckedEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($sender, $e)
+        if ($script:allSections) { Update-SectionProgress }
+    }
+)
+
 if ($args.PropertyName -eq 'IsChecked') {
 
     $entry.isChecked = [bool]$sender.IsChecked
