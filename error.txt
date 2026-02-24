@@ -1,7 +1,6 @@
-Exception calling "ShowDialog" with "0" argument(s): "The property 'Count' cannot be found on this object. Verify that
-the property exists."
-At C:\Temp\CreateCheckList\CreateCheckList.ps1:427 char:1
-+ $null = $window.ShowDialog()
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
-    + FullyQualifiedErrorId : PropertyNotFoundException
+Add-Type : Cannot add type. The type name 'ChecklistItem' already exists.
+At C:\Temp\CreateCheckList\CreateCheckList.ps1:175 char:1
++ Add-Type -TypeDefinition @"
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (ChecklistItem:String) [Add-Type], Exception
+    + FullyQualifiedErrorId : TYPE_ALREADY_EXISTS,Microsoft.PowerShell.Commands.AddTypeCommand
