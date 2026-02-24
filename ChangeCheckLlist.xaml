@@ -2,18 +2,29 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Change Checklist" Height="760" Width="1120"
         WindowStartupLocation="CenterScreen"
-        Background="#0F1218" Foreground="#EAEFF7">
+        Background="#0F1218" Foreground="#FFFFFF">
+
   <Window.Resources>
 
     <Style TargetType="TextBlock">
       <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+
+    <Style TargetType="TextBox">
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="CaretBrush" Value="#FFFFFF"/>
     </Style>
 
     <Style x:Key="PillButton" TargetType="Button">
       <Setter Property="Padding" Value="12,7"/>
       <Setter Property="Margin" Value="0,0,10,0"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="#EAEFF7"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
       <Setter Property="Background" Value="#1B2332"/>
       <Setter Property="BorderBrush" Value="#2A3850"/>
       <Setter Property="BorderThickness" Value="1"/>
@@ -57,7 +68,8 @@
                     Margin="2,2,0,0"/>
 
           <StackPanel Grid.Column="1" Margin="6,0,12,0">
-            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding Text}"/>
+            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding Text}" Foreground="#FFFFFF"/>
+
             <TextBlock x:Name="LinkBlock" Margin="0,6,0,0" FontSize="12" Foreground="#85B6FF">
               <Hyperlink NavigateUri="{Binding LinkUrl}">
                 <Run Text="{Binding LinkText}"/>
@@ -70,7 +82,8 @@
             <TextBox Text="{Binding Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      MinHeight="54"
                      Background="#0D1422"
-                     Foreground="#EAEFF7"
+                     Foreground="#FFFFFF"
+                     CaretBrush="#FFFFFF"
                      BorderBrush="#2A3850"
                      BorderThickness="1"
                      Padding="10"
@@ -93,6 +106,7 @@
 
   <DockPanel LastChildFill="True" Margin="18">
 
+    <!-- Header -->
     <Border DockPanel.Dock="Top" Padding="18" CornerRadius="18"
             Background="#121927" BorderBrush="#25324A" BorderThickness="1">
       <Grid>
@@ -102,18 +116,20 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel>
-          <TextBlock x:Name="TxtTitle" FontSize="22" FontWeight="ExtraBold" Text="Change Checklist"/>
+          <TextBlock x:Name="TxtTitle" FontSize="22" FontWeight="ExtraBold" Text="Change Checklist" Foreground="#FFFFFF"/>
           <TextBlock Margin="0,6,0,0" Foreground="#AAB7D3" FontSize="12"
                      Text="Enter ChangeID, load/save progress automatically, and open the change record link."/>
         </StackPanel>
 
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- ADMIN ONLY PANEL (hidden for users) -->
+        <StackPanel x:Name="AdminPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="BtnEditDefinition" Style="{StaticResource PillButton}" Content="Edit Template (JSON)"/>
           <Button x:Name="BtnOpenState" Style="{StaticResource PillButton}" Content="Open Saved State"/>
         </StackPanel>
       </Grid>
     </Border>
 
+    <!-- ChangeID Bar -->
     <Border DockPanel.Dock="Top" Margin="0,14,0,0" Padding="14" CornerRadius="18"
             Background="#0C111B" BorderBrush="#25324A" BorderThickness="1">
       <Grid>
@@ -126,11 +142,12 @@
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="ChangeID:" Margin="0,0,10,0"/>
+        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="ChangeID:" Margin="0,0,10,0" Foreground="#FFFFFF"/>
         <TextBox x:Name="TxtChangeId"
                  Grid.Column="1"
                  Background="#0D1422"
-                 Foreground="#EAEFF7"
+                 Foreground="#FFFFFF"
+                 CaretBrush="#FFFFFF"
                  BorderBrush="#2A3850"
                  BorderThickness="1"
                  Padding="10"
@@ -145,9 +162,12 @@
       </Grid>
     </Border>
 
+    <!-- Single page content -->
     <Border Margin="0,14,0,0" Padding="14" CornerRadius="18"
             Background="#0C111B" BorderBrush="#25324A" BorderThickness="1">
-      <TabControl x:Name="Tabs" Background="Transparent" BorderThickness="0"/>
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="ChecklistHost" Margin="0,4,0,0"/>
+      </ScrollViewer>
     </Border>
 
   </DockPanel>
