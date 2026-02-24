@@ -1,7 +1,9 @@
-{
-  "pre-001": {
-    "isChecked": true,
-    "checkedUtc": "2026-02-24T14:32:10.103Z",
-    "notes": "Pre-Change Summary:\r\n-------------------\r\n- Backup completed\r\n- Snapshot taken\r\n- CAB approval confirmed\r\n\r\nRisk Assessment:\r\n----------------\r\nLow risk. Rollback validated and documented.\r\n\r\nFinal Status:\r\n-------------\r\nReady to proceed with implementation."
-  }
+function Update-SectionProgress {
+    $window.Dispatcher.Invoke([Action]{
+        foreach ($sec in $script:allSections) {
+            $total = ($sec.Items | Measure-Object).Count
+            $done  = @($sec.Items | Where-Object { $_.IsChecked -eq $true }).Count
+            $sec.Progress.Text = "Progress: $done / $total completed"
+        }
+    }, [System.Windows.Threading.DispatcherPriority]::Background) | Out-Null
 }
