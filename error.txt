@@ -1,17 +1,7 @@
-At C:\Temp\CreateCheckList\CreateCheckList.ps1:335 char:56
-+     $txtTitle.Text = "$([string]$definition.title) â€” $id"
-+                                                        ~~~~
-Unexpected token '$id"
-    # Build UI
-    Build-Tabs $currentState
-    # Restore window geometry (per ChangeID)
-    if ($currentState.window.width -and $currentState.window.height) {
-        $window.Width  = [double]$currentState.window.width
-        $window.Height = [double]$currentState.window.height
-    }
-    if ($currentState.window.left -ne $null -and $currentState.window.top -ne $null) {
-        $window.Left = [double]$currentState.window.left
-        $window.Top  = [double]$currentState.window.top
-    }
-    Save-State $currentState
-    Set-Status "Loaded:' in expression or statement.
+Exception calling "ShowDialog" with "0" argument(s): "The property 'pre-001' cannot be found on this object. Verify
+that the property exists."
+At C:\Temp\CreateCheckList\CreateCheckList.ps1:410 char:1
++ $null = $window.ShowDialog()
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : PropertyNotFoundException
