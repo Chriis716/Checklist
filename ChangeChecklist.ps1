@@ -42,16 +42,28 @@ function Test-IsAdmin {
         $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
         $wp = New-Object Security.Principal.WindowsPrincipal($wi)
 
-        # Local admin
-        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $true }
+        # 1) Keep local Administrator check
+        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { 
+            return $true 
+        }
 
-        # Optional: AD group check (uncomment + set group if you want)
-        # $AdminAdGroup = 'DOMAIN\YourChecklistAdmins'
-        # $groups = $wi.Groups | ForEach-Object { $_.Translate([Security.Principal.NTAccount]).Value }
-        # if ($groups -contains $AdminAdGroup) { return $true }
+        # 2) Explicit user whitelist (DOMAIN\username format)
+        $AdminUsers = @(
+            'vha09\vhatvhsivilc'
+            'VHA\adoe'
+            'VHA\mbrown'
+            'VHA\csivi'
+        )
+
+        $currentUser = $wi.Name
+
+        if ($AdminUsers -contains $currentUser) {
+            return $true
+        }
 
         return $false
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -169,10 +181,25 @@ function Open-ChangeLink([string]$ChangeId) {
     try { Start-Process $url | Out-Null } catch {}
 }
 
+function Update-SectionProgress {
+
+    if (-not $window -or -not $window.Dispatcher) { return }
+
+    $window.Dispatcher.BeginInvoke([Action]{
+        foreach ($sec in $script:allSections) {
+            $total = ($sec.Items | Measure-Object).Count
+            $done  = @($sec.Items | Where-Object { $_.IsChecked -eq $true }).Count
+            $sec.Progress.Text = "Progress: $done / $total completed"
+        }
+    }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
+}
+
 # ============================================================
 # ViewModel Item (INotifyPropertyChanged)
 # ============================================================
-Add-Type -TypeDefinition @"
+
+if (-not ("ChecklistItem" -as [type])) {
+    Add-Type -TypeDefinition @"
 using System;
 using System.ComponentModel;
 
@@ -221,6 +248,7 @@ public class ChecklistItem : INotifyPropertyChanged
     }
 }
 "@ -ReferencedAssemblies 'System.dll'
+}
 
 # ============================================================
 # Load XAML (separate file) and find controls
@@ -240,6 +268,22 @@ $btnOpenState   = $window.FindName('BtnOpenState')
 $adminPanel     = $window.FindName('AdminPanel')
 $checklistHost  = $window.FindName('ChecklistHost')
 
+
+$window.AddHandler(
+    [System.Windows.Controls.Primitives.ToggleButton]::CheckedEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($sender, $e)
+        Update-SectionProgress
+    }
+)
+
+$window.AddHandler(
+    [System.Windows.Controls.Primitives.ToggleButton]::UncheckedEvent,
+    [System.Windows.RoutedEventHandler]{
+        param($sender, $e)
+        Update-SectionProgress
+    }
+)
 function Set-Status([string]$msg) { $txtStatus.Text = $msg }
 
 # ============================================================
@@ -252,22 +296,33 @@ if ($adminPanel) {
 
 # Load definition once (we reload on each Load too)
 $definition   = Load-Definition
-$currentState = $null
+$script:currentState = $null
 
 # List for progress tracking (do NOT use +=)
 $allSections  = New-Object 'System.Collections.Generic.List[object]'
 
+function Sync-UiToState {
+    if (-not $script:currentState) { return }
+
+    foreach ($sec in $script:allSections) {
+        foreach ($item in $sec.Items) {
+
+            $itemId = [string]$item.Id
+            Ensure-ItemState $script:currentState $itemId
+            $entry = Get-ItemStateEntry -state $script:currentState -id $itemId
+
+            $entry.isChecked  = [bool]$item.IsChecked
+            $entry.checkedUtc = $item.CheckedUtc
+            $entry.notes      = [string]$item.Notes
+
+            Set-ItemStateEntry -state $script:currentState -id $itemId -value $entry
+        }
+    }
+}
+
 function Clear-ChecklistHost {
     $checklistHost.Children.Clear()
     $script:allSections = New-Object 'System.Collections.Generic.List[object]'
-}
-
-function Update-SectionProgress {
-    foreach ($sec in $script:allSections) {
-        $total = ($sec.Items | Measure-Object).Count
-        $done  = @($sec.Items | Where-Object { $_.IsChecked }).Count
-        $sec.Progress.Text = "Progress: $done / $total completed"
-    }
 }
 
 function Build-ChecklistPage([object]$state) {
@@ -312,17 +367,19 @@ function Build-ChecklistPage([object]$state) {
             $ci.add_PropertyChanged({
                 param($sender, $args)
 
-                if (-not $currentState) { return }
+                if (-not $script:currentState) { return }
 
                 $sid = [string]$sender.Id
-                Ensure-ItemState $currentState $sid
-                $entry = Get-ItemStateEntry -state $currentState -id $sid
+                Ensure-ItemState $script:currentState $sid
+                $entry = Get-ItemStateEntry -state $script:currentState -id $sid
 
                 if ($args.PropertyName -eq 'IsChecked') {
                     $entry.isChecked = [bool]$sender.IsChecked
-                    if ($sender.IsChecked) {
+					Sync-UiToState
+					Save-State $script:currentState
+                    if ($sender.IsChecked) {					
                         $sender.CheckedUtc = ([DateTime]::UtcNow.ToString("o"))
-                        $entry.checkedUtc  = $sender.CheckedUtc
+                        $entry.checkedUtc  = $sender.CheckedUtc					
                     } else {
                         $sender.CheckedUtc = $null
                         $entry.checkedUtc  = $null
@@ -333,10 +390,13 @@ function Build-ChecklistPage([object]$state) {
                     $entry.notes = [string]$sender.Notes
                 }
 
-                Set-ItemStateEntry -state $currentState -id $sid -value $entry
-                Save-State $currentState
-                Set-Status "Saved: $($currentState.changeId)"
-                Update-SectionProgress
+                Set-ItemStateEntry -state $script:currentState -id $sid -value $entry
+                Save-State $script:currentState
+                Set-Status "Saved: $($script:currentState.changeId)"
+                If ($args.PropertyNamem -eq 'IsChecked'){
+                    Set-Status "IsChecked changed: $($sender.Id) = $($sender.IsChecked)"
+					Update-SectionProgress
+				}
             })
 
             $items.Add($ci)
@@ -379,40 +439,42 @@ function Load-Change([string]$ChangeId) {
     $script:definition = Load-Definition
 
     $id = $ChangeId.Trim()
-    $currentState = Load-State -ChangeId $id -definition $definition
+    $script:currentState = Load-State -ChangeId $id -definition $definition
 
     # Ensure every template item has state
     foreach ($section in $definition.sections) {
         foreach ($it in $section.items) {
-            Ensure-ItemState $currentState ([string]$it.id)
+            Ensure-ItemState $script:currentState ([string]$it.id)
         }
     }
 
     $txtTitle.Text = "$([string]$definition.title) $Dash $id"
 
-    Build-ChecklistPage $currentState
+    Build-ChecklistPage $script:currentState
 
     # Restore window geometry
-    if ($currentState.window.width -and $currentState.window.height) {
-        $window.Width  = [double]$currentState.window.width
-        $window.Height = [double]$currentState.window.height
+    if ($script:currentState.window.width -and $script:currentState.window.height) {
+        $window.Width  = [double]$script:currentState.window.width
+        $window.Height = [double]$script:currentState.window.height
     }
-    if ($currentState.window.left -ne $null -and $currentState.window.top -ne $null) {
-        $window.Left = [double]$currentState.window.left
-        $window.Top  = [double]$currentState.window.top
+    if ($script:currentState.window.left -ne $null -and $script:currentState.window.top -ne $null) {
+        $window.Left = [double]$script:currentState.window.left
+        $window.Top  = [double]$script:currentState.window.top
     }
 
-    Save-State $currentState
+    Save-State $script:currentState
     Set-Status "Loaded: $id"
 }
 
 function Save-Current {
-    if (-not $currentState) {
+    if (-not $script:currentState) {
         Set-Status "Nothing loaded yet."
         return
     }
-    Save-State $currentState
-    Set-Status "Saved: $($currentState.changeId)"
+
+    Sync-UiToState
+    Save-State $script:currentState
+    Set-Status "Saved: $($script:currentState.changeId)"
 }
 
 # Buttons
@@ -451,12 +513,14 @@ if ($btnOpenState) {
 
 # Save window geometry on close
 $window.add_Closing({
-    if ($currentState) {
-        $currentState.window.left   = $window.Left
-        $currentState.window.top    = $window.Top
-        $currentState.window.width  = $window.Width
-        $currentState.window.height = $window.Height
-        Save-State $currentState
+    if ($script:currentState) {
+        $script:currentState.window.left   = $window.Left
+        $script:currentState.window.top    = $window.Top
+        $script:currentState.window.width  = $window.Width
+        $script:currentState.window.height = $window.Height
+
+        Sync-UiToState
+        Save-State $script:currentState
     }
 })
 
