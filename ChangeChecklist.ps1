@@ -21,7 +21,8 @@ $null = New-Item -ItemType Directory -Path $StateDir -Force
 # Change Request link template (ChangeID replaces {id})
 $ChangeUrlTemplate = "https://yourit.va.gov/nav_to.do?uri=change_request.do?sysparm_query=number={id}"
 
-$Dash = [char]0x2014 #-
+# Safe em-dash (avoids encoding problems)
+$Dash = [char]0x2014
 
 # ============================================================
 # Safety checks
@@ -34,13 +35,34 @@ if (-not (Test-Path $DefinitionPath)) {
 }
 
 # ============================================================
+# Admin detection
+# ============================================================
+function Test-IsAdmin {
+    try {
+        $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $wp = New-Object Security.Principal.WindowsPrincipal($wi)
+
+        # Local admin
+        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $true }
+
+        # Optional: AD group check (uncomment + set group if you want)
+        # $AdminAdGroup = 'DOMAIN\YourChecklistAdmins'
+        # $groups = $wi.Groups | ForEach-Object { $_.Translate([Security.Principal.NTAccount]).Value }
+        # if ($groups -contains $AdminAdGroup) { return $true }
+
+        return $false
+    } catch {
+        return $false
+    }
+}
+
+# ============================================================
 # Helpers: Definition + State
 # ============================================================
 function Load-Definition {
-    # Always loads from $DefinitionPath
     $definition = Get-Content -Path $DefinitionPath -Raw | ConvertFrom-Json
 
-    # Optional: If JSON includes changeUrlTemplate, we will copy it into $ChangeUrlTemplate
+    # Optional: allow JSON to override the template for the change URL
     # (Variable name stays the same.)
     if ($null -ne $definition.changeUrlTemplate -and -not [string]::IsNullOrWhiteSpace([string]$definition.changeUrlTemplate)) {
         $script:ChangeUrlTemplate = [string]$definition.changeUrlTemplate
@@ -52,7 +74,7 @@ function Load-Definition {
 function Get-StatePath([string]$ChangeId) {
     if ([string]::IsNullOrWhiteSpace($ChangeId)) { return $null }
     $safe = ($ChangeId.Trim() -replace '[^\w\-]', '_')
-    return (Join-Path $StateDir "$safe.state.json")
+    Join-Path $StateDir "$safe.state.json"
 }
 
 function New-BlankState([string]$ChangeId, [object]$definition) {
@@ -61,7 +83,7 @@ function New-BlankState([string]$ChangeId, [object]$definition) {
         definitionId      = if ($definition.definitionId) { [string]$definition.definitionId } else { "default" }
         definitionVersion = if ($definition.definitionVersion) { [int]$definition.definitionVersion } else { 1 }
         savedUtc          = $null
-        itemStates        = @{}   # id -> @{ isChecked=bool; checkedUtc=string|null; notes=string }
+        itemStates        = [pscustomobject]@{}  # MUST be object so we can safely add NoteProperties with hyphen keys
         window            = @{ top=$null; left=$null; width=$null; height=$null }
     }
 }
@@ -72,20 +94,27 @@ function Load-State([string]$ChangeId, [object]$definition) {
         try {
             $state = Get-Content -Path $path -Raw | ConvertFrom-Json
         } catch {
-            # If state got corrupted, start fresh rather than crashing
             $state = New-BlankState -ChangeId $ChangeId -definition $definition
         }
 
-        # Ensure these exist and are up-to-date
         if (-not $state.PSObject.Properties.Name.Contains('definitionId')) {
             $state | Add-Member -MemberType NoteProperty -Name definitionId -Value (if ($definition.definitionId) { [string]$definition.definitionId } else { "default" })
         }
         if (-not $state.PSObject.Properties.Name.Contains('definitionVersion')) {
             $state | Add-Member -MemberType NoteProperty -Name definitionVersion -Value (if ($definition.definitionVersion) { [int]$definition.definitionVersion } else { 1 })
         }
+
         if (-not $state.PSObject.Properties.Name.Contains('itemStates') -or $null -eq $state.itemStates) {
-            $state | Add-Member -MemberType NoteProperty -Name itemStates -Value (@{})
+            $state | Add-Member -MemberType NoteProperty -Name itemStates -Value ([pscustomobject]@{})
+        } elseif ($state.itemStates -is [hashtable]) {
+            # normalize to PSCustomObject so hyphen keys work consistently
+            $tmp = [pscustomobject]@{}
+            foreach ($k in $state.itemStates.Keys) {
+                $tmp | Add-Member -MemberType NoteProperty -Name $k -Value $state.itemStates[$k]
+            }
+            $state.itemStates = $tmp
         }
+
         if (-not $state.PSObject.Properties.Name.Contains('window') -or $null -eq $state.window) {
             $state | Add-Member -MemberType NoteProperty -Name window -Value (@{ top=$null; left=$null; width=$null; height=$null })
         }
@@ -93,7 +122,7 @@ function Load-State([string]$ChangeId, [object]$definition) {
         return $state
     }
 
-    return (New-BlankState -ChangeId $ChangeId -definition $definition)
+    New-BlankState -ChangeId $ChangeId -definition $definition
 }
 
 function Save-State([object]$state) {
@@ -101,14 +130,29 @@ function Save-State([object]$state) {
     $state.savedUtc = ([DateTime]::UtcNow.ToString("o"))
     $path = Get-StatePath $state.changeId
     if (-not $path) { return }
-
     $state | ConvertTo-Json -Depth 12 | Set-Content -Path $path -Encoding UTF8
 }
 
-function Ensure-ItemState([object]$state, [string]$id) {
-    if (-not $state) { return }
-    if ([string]::IsNullOrWhiteSpace($id)) { return }
+# --- itemStates accessors (safe for keys like "pre-001")
+function Get-ItemStateEntry([object]$state, [string]$id) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return $null }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) { return $null }
+    $prop.Value
+}
 
+function Set-ItemStateEntry([object]$state, [string]$id, [object]$value) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) {
+        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value $value
+    } else {
+        $prop.Value = $value
+    }
+}
+
+function Ensure-ItemState([object]$state, [string]$id) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
     if ($null -eq (Get-ItemStateEntry -state $state -id $id)) {
         Set-ItemStateEntry -state $state -id $id -value ([pscustomobject]@{
             isChecked  = $false
@@ -123,71 +167,6 @@ function Open-ChangeLink([string]$ChangeId) {
     $id = $ChangeId.Trim()
     $url = $ChangeUrlTemplate.Replace('{id}', [uri]::EscapeDataString($id))
     try { Start-Process $url | Out-Null } catch {}
-}
-
-function Get-ItemStateEntry([object]$state, [string]$id) {
-    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return $null }
-    $prop = $state.itemStates.PSObject.Properties[$id]
-    if ($null -eq $prop) { return $null }
-    return $prop.Value
-}
-
-function Set-ItemStateEntry([object]$state, [string]$id, [object]$value) {
-    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
-    $prop = $state.itemStates.PSObject.Properties[$id]
-    if ($null -eq $prop) {
-        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value $value
-    } else {
-        $prop.Value = $value
-    }
-}
-
-function Test-IsAdmin {
-    try {
-        $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $wp = New-Object Security.Principal.WindowsPrincipal($wi)
-
-        # Local admin
-        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $true }
-
-        # Optional: AD group check (uncomment + set group if you want)
-        # $AdminAdGroup = 'DOMAIN\YourChecklistAdmins'
-        # if ($wi.Groups | ForEach-Object { $_.Translate([Security.Principal.NTAccount]).Value } | Where-Object { $_ -eq $AdminAdGroup }) { return $true }
-
-        return $false
-    } catch {
-        return $false
-    }
-}
-
-function Get-ItemStateEntry([object]$state, [string]$id) {
-    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return $null }
-    $prop = $state.itemStates.PSObject.Properties[$id]
-    if ($null -eq $prop) { return $null }
-    return $prop.Value
-}
-
-function Set-ItemStateEntry([object]$state, [string]$id, [object]$value) {
-    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
-    $prop = $state.itemStates.PSObject.Properties[$id]
-    if ($null -eq $prop) {
-        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value $value
-    } else {
-        $prop.Value = $value
-    }
-}
-
-function Ensure-ItemState([object]$state, [string]$id) {
-    if (-not $state) { return }
-    if ([string]::IsNullOrWhiteSpace($id)) { return }
-
-    if ($null -eq (Get-ItemStateEntry -state $state -id $id)) {
-        Set-ItemStateEntry -state $state -id $id -value ([pscustomobject]@{
-            isChecked  = $false
-            checkedUtc = $null
-            notes      = ""
-        })
-    }
 }
 
 # ============================================================
@@ -218,7 +197,7 @@ public class ChecklistItem : INotifyPropertyChanged
         set { _notes = value; OnPropertyChanged("Notes"); }
     }
 
-    public string CheckedUtc { get; set; } // ISO string or null
+    public string CheckedUtc { get; set; }
 
     public bool HasLink
     {
@@ -250,31 +229,32 @@ public class ChecklistItem : INotifyPropertyChanged
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-$txtTitle     = $window.FindName('TxtTitle')
-$txtChangeId  = $window.FindName('TxtChangeId')
-$txtStatus    = $window.FindName('TxtStatus')
-$btnLoad      = $window.FindName('BtnLoad')
-$btnSave      = $window.FindName('BtnSave')
-$btnOpenCR    = $window.FindName('BtnOpenCR')
-$btnEditDef   = $window.FindName('BtnEditDefinition')
-$btnOpenState = $window.FindName('BtnOpenState')
-$adminPanel = $window.FindName('AdminPanel')
-$checklistHost = $window.FindName('ChecklistHost')
+$txtTitle       = $window.FindName('TxtTitle')
+$txtChangeId    = $window.FindName('TxtChangeId')
+$txtStatus      = $window.FindName('TxtStatus')
+$btnLoad        = $window.FindName('BtnLoad')
+$btnSave        = $window.FindName('BtnSave')
+$btnOpenCR      = $window.FindName('BtnOpenCR')
+$btnEditDef     = $window.FindName('BtnEditDefinition')
+$btnOpenState   = $window.FindName('BtnOpenState')
+$adminPanel     = $window.FindName('AdminPanel')
+$checklistHost  = $window.FindName('ChecklistHost')
 
 function Set-Status([string]$msg) { $txtStatus.Text = $msg }
 
 # ============================================================
 # Runtime objects
 # ============================================================
-$IsAdmin = Test=IsAdmin
-if ($IsAdmin){
-	$adminPanel.Visibility = 'Visible'
-} else {
-	$adminPanel.Visibility = 'Collapsed'
+$IsAdmin = Test-IsAdmin
+if ($adminPanel) {
+    $adminPanel.Visibility = if ($IsAdmin) { 'Visible' } else { 'Collapsed' }
 }
 
+# Load definition once (we reload on each Load too)
 $definition   = Load-Definition
 $currentState = $null
+
+# List for progress tracking (do NOT use +=)
 $allSections  = New-Object 'System.Collections.Generic.List[object]'
 
 function Clear-ChecklistHost {
@@ -315,11 +295,13 @@ function Build-ChecklistPage([object]$state) {
         $items = New-Object 'System.Collections.ObjectModel.ObservableCollection[ChecklistItem]'
 
         foreach ($it in $section.items) {
-            Ensure-ItemState $state ([string]$it.id)
-            $st = Get-ItemStateEntry -state $state -id ([string]$it.id)
+            $itemId = [string]$it.id
+
+            Ensure-ItemState $state $itemId
+            $st = Get-ItemStateEntry -state $state -id $itemId
 
             $ci = New-Object ChecklistItem
-            $ci.Id         = [string]$it.id
+            $ci.Id         = $itemId
             $ci.Text       = [string]$it.text
             $ci.LinkText   = [string]$it.linkText
             $ci.LinkUrl    = [string]$it.linkUrl
@@ -332,8 +314,9 @@ function Build-ChecklistPage([object]$state) {
 
                 if (-not $currentState) { return }
 
-                Ensure-ItemState $currentState ([string]$sender.Id)
-                $entry = Get-ItemStateEntry -state $currentState -id ([string]$sender.Id)
+                $sid = [string]$sender.Id
+                Ensure-ItemState $currentState $sid
+                $entry = Get-ItemStateEntry -state $currentState -id $sid
 
                 if ($args.PropertyName -eq 'IsChecked') {
                     $entry.isChecked = [bool]$sender.IsChecked
@@ -350,7 +333,7 @@ function Build-ChecklistPage([object]$state) {
                     $entry.notes = [string]$sender.Notes
                 }
 
-                Set-ItemStateEntry -state $currentState -id ([string]$sender.Id) -value $entry
+                Set-ItemStateEntry -state $currentState -id $sid -value $entry
                 Save-State $currentState
                 Set-Status "Saved: $($currentState.changeId)"
                 Update-SectionProgress
@@ -392,26 +375,24 @@ function Load-Change([string]$ChangeId) {
         return
     }
 
-    # Reload definition each time in case you edited the JSON
+    # Reload definition each time (admins may update JSON)
     $script:definition = Load-Definition
 
     $id = $ChangeId.Trim()
     $currentState = Load-State -ChangeId $id -definition $definition
 
-    # Ensure any new items in the template get state entries
+    # Ensure every template item has state
     foreach ($section in $definition.sections) {
         foreach ($it in $section.items) {
-            Ensure-ItemState $currentState $it.id
+            Ensure-ItemState $currentState ([string]$it.id)
         }
     }
 
-    # Title
     $txtTitle.Text = "$([string]$definition.title) $Dash $id"
 
-    # Build UI
     Build-ChecklistPage $currentState
 
-    # Restore window geometry (per ChangeID)
+    # Restore window geometry
     if ($currentState.window.width -and $currentState.window.height) {
         $window.Width  = [double]$currentState.window.width
         $window.Height = [double]$currentState.window.height
@@ -439,31 +420,34 @@ $btnLoad.Add_Click({ Load-Change $txtChangeId.Text })
 $btnSave.Add_Click({ Save-Current })
 $btnOpenCR.Add_Click({ Open-ChangeLink $txtChangeId.Text })
 
-$btnEditDef.Add_Click({
-    try {
-        Start-Process notepad.exe $DefinitionPath | Out-Null
-        [System.Windows.MessageBox]::Show(
-            "Edit the template JSON and save it. Then click Load to refresh a ChangeID.",
-            "Edit Template"
-        ) | Out-Null
-        Set-Status "Template opened: $DefinitionPath"
-    } catch {
-        Set-Status "Could not open template."
-    }
-})
+# Admin-only buttons: safe even if hidden
+if ($btnEditDef) {
+    $btnEditDef.Add_Click({
+        if (-not $IsAdmin) { return }
+        try {
+            Start-Process notepad.exe $DefinitionPath | Out-Null
+            Set-Status "Template opened: $DefinitionPath"
+        } catch {
+            Set-Status "Could not open template."
+        }
+    })
+}
 
-$btnOpenState.Add_Click({
-    if ([string]::IsNullOrWhiteSpace($txtChangeId.Text)) {
-        [System.Windows.MessageBox]::Show("Enter a ChangeID first, then click Open Saved State.","Open Saved State") | Out-Null
-        return
-    }
-    $path = Get-StatePath $txtChangeId.Text
-    if (-not (Test-Path $path)) {
-        [System.Windows.MessageBox]::Show("No saved state yet for this ChangeID. Click Load first.","Open Saved State") | Out-Null
-        return
-    }
-    Start-Process notepad.exe $path | Out-Null
-})
+if ($btnOpenState) {
+    $btnOpenState.Add_Click({
+        if (-not $IsAdmin) { return }
+        if ([string]::IsNullOrWhiteSpace($txtChangeId.Text)) {
+            [System.Windows.MessageBox]::Show("Enter a ChangeID first.","Open Saved State") | Out-Null
+            return
+        }
+        $path = Get-StatePath $txtChangeId.Text
+        if (-not (Test-Path $path)) {
+            [System.Windows.MessageBox]::Show("No saved state yet for this ChangeID. Click Load first.","Open Saved State") | Out-Null
+            return
+        }
+        Start-Process notepad.exe $path | Out-Null
+    })
+}
 
 # Save window geometry on close
 $window.add_Closing({
@@ -476,7 +460,7 @@ $window.add_Closing({
     }
 })
 
-# Default starter (edit if you want)
+# Default starter
 $txtChangeId.Text = "CHG0000000"
 Set-Status "Enter ChangeID and click Load."
 
