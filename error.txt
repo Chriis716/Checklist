@@ -1,51 +1,6 @@
-if (-not ("ChecklistItem" -as [type])) {
-    Add-Type -TypeDefinition @"
-using System;
-using System.ComponentModel;
-
-public class ChecklistItem : INotifyPropertyChanged
-{
-    public string Id { get; set; }
-    public string Text { get; set; }
-    public string LinkText { get; set; }
-    public string LinkUrl { get; set; }
-
-    private bool _isChecked;
-    public bool IsChecked
-    {
-        get { return _isChecked; }
-        set { _isChecked = value; OnPropertyChanged("IsChecked"); OnPropertyChanged("CheckedLabel"); }
-    }
-
-    private string _notes;
-    public string Notes
-    {
-        get { return _notes; }
-        set { _notes = value; OnPropertyChanged("Notes"); }
-    }
-
-    public string CheckedUtc { get; set; }
-
-    public bool HasLink
-    {
-        get { return !String.IsNullOrWhiteSpace(LinkUrl) && !String.IsNullOrWhiteSpace(LinkText); }
-    }
-
-    public string CheckedLabel
-    {
-        get
-        {
-            if (!IsChecked) return "Not checked yet";
-            if (String.IsNullOrWhiteSpace(CheckedUtc)) return "Checked";
-            return "Checked: " + CheckedUtc;
-        }
-    }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-    private void OnPropertyChanged(string name)
-    {
-        if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs(name));
-    }
-}
-"@ -ReferencedAssemblies 'System.dll'
-}
+Exception calling "Invoke" with "2" argument(s): "Exception calling "Invoke" with "2" argument(s): "Cannot perform this operation while dispatcher processing is suspended.""
+At C:\Temp\CreateCheckList\CreateCheckList.ps1:316 char:5
++     $window.Dispatcher.Invoke([Action]{
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : XamlParseException
