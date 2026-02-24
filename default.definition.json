@@ -1,0 +1,54 @@
+{
+  "definitionId": "default",
+  "definitionVersion": 1,
+  "title": "Change Checklist",
+  "changeUrlTemplate": "https://example.service-now.com/nav_to.do?uri=change_request.do?sysparm_query=number={id}",
+  "sections": [
+    {
+      "name": "Pre Change Request",
+      "items": [
+        {
+          "id": "pre-001",
+          "text": "Confirm approval / authorization recorded",
+          "linkText": "Change policy",
+          "linkUrl": "https://example.com/policy"
+        },
+        {
+          "id": "pre-002",
+          "text": "Notify impacted users / distribution list",
+          "linkText": "Notification template",
+          "linkUrl": "https://example.com/notify-template"
+        },
+        {
+          "id": "pre-003",
+          "text": "Rollback plan documented and verified",
+          "linkText": "",
+          "linkUrl": ""
+        }
+      ]
+    },
+    {
+      "name": "Begin Implementation on the Change Request",
+      "items": [
+        {
+          "id": "impl-001",
+          "text": "Start maintenance window / confirm monitoring in place",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-002",
+          "text": "Execute implementation steps per runbook",
+          "linkText": "Runbook",
+          "linkUrl": "https://example.com/runbook"
+        },
+        {
+          "id": "impl-003",
+          "text": "Post-change validation / smoke tests complete",
+          "linkText": "",
+          "linkUrl": ""
+        }
+      ]
+    }
+  ]
+}
