@@ -1,85 +1,30 @@
-function Build-ChecklistPage([object]$state) {
-    Clear-ChecklistHost
+function Test-IsAdmin {
+    try {
+        $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $wp = New-Object Security.Principal.WindowsPrincipal($wi)
 
-    foreach ($section in $definition.sections) {
-
-        # Section header
-        $hdr = New-Object System.Windows.Controls.TextBlock
-        $hdr.Text = [string]$section.name
-        $hdr.FontSize = 16
-        $hdr.FontWeight = 'Bold'
-        $hdr.Margin = '0,10,0,6'
-        $hdr.Foreground = [Windows.Media.Brushes]::White
-        $checklistHost.Children.Add($hdr) | Out-Null
-
-        # Progress line
-        $progress = New-Object System.Windows.Controls.TextBlock
-        $progress.Margin = '0,0,0,10'
-        $progress.Foreground = [Windows.Media.Brushes]::LightSteelBlue
-        $progress.FontSize = 12
-        $checklistHost.Children.Add($progress) | Out-Null
-
-        # Items collection
-        $items = New-Object 'System.Collections.ObjectModel.ObservableCollection[ChecklistItem]'
-
-        foreach ($it in $section.items) {
-            Ensure-ItemState $state ([string]$it.id)
-            $st = Get-ItemStateEntry -state $state -id ([string]$it.id)
-
-            $ci = New-Object ChecklistItem
-            $ci.Id         = [string]$it.id
-            $ci.Text       = [string]$it.text
-            $ci.LinkText   = [string]$it.linkText
-            $ci.LinkUrl    = [string]$it.linkUrl
-            $ci.IsChecked  = [bool]$st.isChecked
-            $ci.CheckedUtc = $st.checkedUtc
-            $ci.Notes      = [string]$st.notes
-
-            $ci.add_PropertyChanged({
-                param($sender, $args)
-
-                if (-not $currentState) { return }
-
-                Ensure-ItemState $currentState ([string]$sender.Id)
-                $entry = Get-ItemStateEntry -state $currentState -id ([string]$sender.Id)
-
-                if ($args.PropertyName -eq 'IsChecked') {
-                    $entry.isChecked = [bool]$sender.IsChecked
-                    if ($sender.IsChecked) {
-                        $sender.CheckedUtc = ([DateTime]::UtcNow.ToString("o"))
-                        $entry.checkedUtc  = $sender.CheckedUtc
-                    } else {
-                        $sender.CheckedUtc = $null
-                        $entry.checkedUtc  = $null
-                    }
-                }
-
-                if ($args.PropertyName -eq 'Notes') {
-                    $entry.notes = [string]$sender.Notes
-                }
-
-                Set-ItemStateEntry -state $currentState -id ([string]$sender.Id) -value $entry
-                Save-State $currentState
-                Set-Status "Saved: $($currentState.changeId)"
-                Update-SectionProgress
-            })
-
-            $items.Add($ci)
+        # 1) Keep local Administrator check
+        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { 
+            return $true 
         }
 
-        # ItemsControl for this section
-        $ic = New-Object System.Windows.Controls.ItemsControl
-        $ic.ItemsSource = $items
-        $ic.ItemTemplate = $window.Resources['ChecklistItemTemplate']
-        $checklistHost.Children.Add($ic) | Out-Null
+        # 2) Explicit user whitelist (DOMAIN\username format)
+        $AdminUsers = @(
+            'VHA\jsmith'
+            'VHA\adoe'
+            'VHA\mbrown'
+            'VHA\csivi'
+        )
 
-        # Track for progress updates
-        $script:allSections.Add([pscustomobject]@{
-            Name     = [string]$section.name
-            Items    = $items
-            Progress = $progress
-        }) | Out-Null
+        $currentUser = $wi.Name
+
+        if ($AdminUsers -contains $currentUser) {
+            return $true
+        }
+
+        return $false
     }
-
-    Update-SectionProgress
+    catch {
+        return $false
+    }
 }
