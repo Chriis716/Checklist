@@ -1,60 +1,29 @@
-# Real-time progress update when checkboxes change (safe now that allSections exists)
-$window.AddHandler(
-    [System.Windows.Controls.Primitives.ToggleButton]::CheckedEvent,
-    [System.Windows.RoutedEventHandler]{
-        param($sender, $e)
-        if ($script:allSections) { Update-SectionProgress }
-    }
-)
+# Section intro / cookbooks / notes (NOT checkable)
+if ($section.PSObject.Properties.Name -contains 'intro' -and -not [string]::IsNullOrWhiteSpace([string]$section.intro)) {
 
-$window.AddHandler(
-    [System.Windows.Controls.Primitives.ToggleButton]::UncheckedEvent,
-    [System.Windows.RoutedEventHandler]{
-        param($sender, $e)
-        if ($script:allSections) { Update-SectionProgress }
-    }
-)
+    $introBorder = New-Object System.Windows.Controls.Border
+    $introBorder.Margin = '0,0,0,10'
+    $introBorder.Padding = '12'
+    $introBorder.CornerRadius = '12'
+    $introBorder.Background = [Windows.Media.Brushes]::Transparent
+    $introBorder.BorderBrush = [Windows.Media.Brushes]::SlateGray
+    $introBorder.BorderThickness = '1'
 
-if ($args.PropertyName -eq 'IsChecked') {
+    $introText = New-Object System.Windows.Controls.TextBlock
+    $introText.Text = [string]$section.intro
+    $introText.Foreground = [Windows.Media.Brushes]::Gainsboro
+    $introText.FontSize = 12
+    $introText.TextWrapping = 'Wrap'
 
-    $entry.isChecked = [bool]$sender.IsChecked
-
-    if ($sender.IsChecked) {
-        $sender.CheckedUtc = ([DateTime]::UtcNow.ToString("o"))
-        $entry.checkedUtc  = $sender.CheckedUtc
-    } else {
-        $sender.CheckedUtc = $null
-        $entry.checkedUtc  = $null
-    }
-
-    Set-ItemStateEntry -state $script:currentState -id $sid -value $entry
-    Save-State $script:currentState
-    Set-Status "Saved: $($script:currentState.changeId)"
-
-    # Progress updates in real time via the window AddHandler too,
-    # but calling it here is fine and immediate.
-    Update-SectionProgress
-    return
+    $introBorder.Child = $introText
+    $checklistHost.Children.Add($introBorder) | Out-Null
 }
 
-if ($args.PropertyName -eq 'Notes') {
-    $entry.notes = [string]$sender.Notes
-    Set-ItemStateEntry -state $script:currentState -id $sid -value $entry
-    Save-State $script:currentState
-    Set-Status "Saved: $($script:currentState.changeId)"
-    return
-}
-
-
-function Update-SectionProgress {
-
-    if (-not $script:allSections -or $script:allSections.Count -eq 0) { return }
-
-    $window.Dispatcher.BeginInvoke([Action]{
-        foreach ($sec in $script:allSections) {
-            $total = ($sec.Items | Measure-Object).Count
-            $done  = @($sec.Items | Where-Object { $_.IsChecked -eq $true }).Count
-            $sec.Progress.Text = "Progress: $done / $total completed"
-        }
-    }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
-}
+"references": [
+  { "text": "Password Change (v1.7) – Network Locations (2005.2)", "url": "https://..." },
+  { "text": "Image Share Permissions", "url": "https://..." }
+],
+"notes": [
+  "Can start these steps starting 26 Jan",
+  "Do not edit nor remove the VHA accounts at this time"
+]
