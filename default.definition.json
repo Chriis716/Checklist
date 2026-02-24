@@ -1,27 +1,33 @@
 {
   "definitionId": "default",
-  "definitionVersion": 1,
-  "title": "Change Checklist",
-  "changeUrlTemplate": "https://example.service-now.com/nav_to.do?uri=change_request.do?sysparm_query=number={id}",
+  "definitionVersion": 2,
+  "title": "IA/IU Account Change Checklist",
   "sections": [
     {
       "name": "Pre Change Request",
+      "intro": "These steps may begin starting 26 Jan. Create the Change Request at least 2 weeks prior. Assign your name to the ctasks under the workflow tab after submission. Send site email notice at least 2 weeks prior.\n\nReference Cookbook: Password Change (v1.7) – Network Locations (2005.2)\nReference: Image Share Permissions\n\nNOTE: Do not edit nor remove the VHA accounts at this time.",
       "items": [
         {
           "id": "pre-001",
-          "text": "Confirm approval / authorization recorded",
-          "linkText": "Change policy",
-          "linkUrl": "https://example.com/policy"
+          "text": "Create a list of active Network Locations that utilize the old VHAxxxIA/IU accounts.",
+          "linkText": "Network Locations (2005.2)",
+          "linkUrl": ""
         },
         {
           "id": "pre-002",
-          "text": "Notify impacted users / distribution list",
-          "linkText": "Notification template",
-          "linkUrl": "https://example.com/notify-template"
+          "text": "Contact respective system owners to coordinate adding the new OITxxxIA/IU accounts.",
+          "linkText": "",
+          "linkUrl": ""
         },
         {
           "id": "pre-003",
-          "text": "Rollback plan documented and verified",
+          "text": "Validate new OIT accounts have access to image shares.",
+          "linkText": "Image Share Permissions",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-004",
+          "text": "Schedule date/time with Clinicomp personnel for post account reconciliation actions.",
           "linkText": "",
           "linkUrl": ""
         }
@@ -29,22 +35,113 @@
     },
     {
       "name": "Begin Implementation on the Change Request",
+      "intro": "These tasks can be completed during business hours unless otherwise noted.\n\nPrimary References:\n- Cookbook – Password Change\n- Cookbook – Change IA and IU Accounts\n\nSome tasks must be completed during scheduled downtime.",
       "items": [
         {
           "id": "impl-001",
-          "text": "Start maintenance window / confirm monitoring in place",
-          "linkText": "",
+          "text": "Reconcile OITxxxIA/IU/IU2 accounts (add to KeePass and RDCM). Close related ctasks.",
+          "linkText": "Reconcile Accounts",
           "linkUrl": ""
         },
         {
           "id": "impl-002",
-          "text": "Execute implementation steps per runbook",
-          "linkText": "Runbook",
-          "linkUrl": "https://example.com/runbook"
+          "text": "Add OITAppAdminsCIT3SVC security group to local Administrators and Users on BGPs and DIGs/TXTs servers.",
+          "linkText": "Server Permissions",
+          "linkUrl": ""
         },
         {
           "id": "impl-003",
-          "text": "Post-change validation / smoke tests complete",
+          "text": "Add OITServerAdminsCIT3 security group to all servers’ local Users group.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-004",
+          "text": "Add va\\oitXXXia full control permissions to C:\\DICOM and C:\\DICOM\\Image_In folders.",
+          "linkText": "Server Permissions",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-005",
+          "text": "Create C:\\DICOM\\Scratch folders and confirm IA accounts have full control.",
+          "linkText": "Update Scratch Directory",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-006",
+          "text": "Update Scratch folder in MUMPs on DIGs/TXTs servers.",
+          "linkText": "Update Scratch Directory",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-007",
+          "text": "Update annotated Network Locations using old VHAxxxIA/IU accounts.",
+          "linkText": "Network Locations (2005.2)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-008",
+          "text": "Update Apache Tomcat credentials on HDIGs and VIX.",
+          "linkText": "Apache Tomcat",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-009",
+          "text": "Update IRIS service using new OITxxxIA account.",
+          "linkText": "Intersystems (IRIS Service)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-010",
+          "text": "Sign out, update RDCM credentials, sign in with new account and restart services. Verify functionality.",
+          "linkText": "Final Steps",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-011",
+          "text": "Update IRIS Management Portal accounts.",
+          "linkText": "IRIS Management Portal",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-012",
+          "text": "Update Lighthouse Web Interface account passwords.",
+          "linkText": "Lighthouse Web Interface",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-013",
+          "text": "Update Compass Web Interface account passwords.",
+          "linkText": "Compass Web Interface",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-014",
+          "text": "Update VA\\OITxxxIU credentials in BGP Imaging Site Parameters (do early morning).",
+          "linkText": "Background Processor",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-015",
+          "text": "Change VistA Verify Code (Method 1) using OITxxxIU2 password.",
+          "linkText": "VistA Service Account",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-016",
+          "text": "Restart services.",
+          "linkText": "Final Steps",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-017",
+          "text": "Update MSP referencing correct accounts in CyberArk.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-018",
+          "text": "Close open ctasks and complete Change Request.",
           "linkText": "",
           "linkUrl": ""
         }
