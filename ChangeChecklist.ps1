@@ -19,7 +19,9 @@ $StateDir = Join-Path $env:APPDATA 'ChangeChecklist\state'
 $null = New-Item -ItemType Directory -Path $StateDir -Force
 
 # Change Request link template (ChangeID replaces {id})
-$ChangeUrlTemplate = "https://example.service-now.com/nav_to.do?uri=change_request.do?sysparm_query=number={id}"
+$ChangeUrlTemplate = "https://yourit.va.gov/nav_to.do?uri=change_request.do?sysparm_query=number={id}"
+
+$Dash = [char]0x2014 #-
 
 # ============================================================
 # Safety checks
@@ -107,9 +109,8 @@ function Ensure-ItemState([object]$state, [string]$id) {
     if (-not $state) { return }
     if ([string]::IsNullOrWhiteSpace($id)) { return }
 
-    # itemStates is a PSCustomObject from JSON; we can add NoteProperty dynamically
-    if (-not $state.itemStates.$id) {
-        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value ([pscustomobject]@{
+    if ($null -eq (Get-ItemStateEntry -state $state -id $id)) {
+        Set-ItemStateEntry -state $state -id $id -value ([pscustomobject]@{
             isChecked  = $false
             checkedUtc = $null
             notes      = ""
@@ -122,6 +123,71 @@ function Open-ChangeLink([string]$ChangeId) {
     $id = $ChangeId.Trim()
     $url = $ChangeUrlTemplate.Replace('{id}', [uri]::EscapeDataString($id))
     try { Start-Process $url | Out-Null } catch {}
+}
+
+function Get-ItemStateEntry([object]$state, [string]$id) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return $null }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
+}
+
+function Set-ItemStateEntry([object]$state, [string]$id, [object]$value) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) {
+        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value $value
+    } else {
+        $prop.Value = $value
+    }
+}
+
+function Test-IsAdmin {
+    try {
+        $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $wp = New-Object Security.Principal.WindowsPrincipal($wi)
+
+        # Local admin
+        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $true }
+
+        # Optional: AD group check (uncomment + set group if you want)
+        # $AdminAdGroup = 'DOMAIN\YourChecklistAdmins'
+        # if ($wi.Groups | ForEach-Object { $_.Translate([Security.Principal.NTAccount]).Value } | Where-Object { $_ -eq $AdminAdGroup }) { return $true }
+
+        return $false
+    } catch {
+        return $false
+    }
+}
+
+function Get-ItemStateEntry([object]$state, [string]$id) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return $null }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
+}
+
+function Set-ItemStateEntry([object]$state, [string]$id, [object]$value) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) {
+        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value $value
+    } else {
+        $prop.Value = $value
+    }
+}
+
+function Ensure-ItemState([object]$state, [string]$id) {
+    if (-not $state) { return }
+    if ([string]::IsNullOrWhiteSpace($id)) { return }
+
+    if ($null -eq (Get-ItemStateEntry -state $state -id $id)) {
+        Set-ItemStateEntry -state $state -id $id -value ([pscustomobject]@{
+            isChecked  = $false
+            checkedUtc = $null
+            notes      = ""
+        })
+    }
 }
 
 # ============================================================
@@ -184,7 +250,6 @@ public class ChecklistItem : INotifyPropertyChanged
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-$tabs         = $window.FindName('Tabs')
 $txtTitle     = $window.FindName('TxtTitle')
 $txtChangeId  = $window.FindName('TxtChangeId')
 $txtStatus    = $window.FindName('TxtStatus')
@@ -193,38 +258,65 @@ $btnSave      = $window.FindName('BtnSave')
 $btnOpenCR    = $window.FindName('BtnOpenCR')
 $btnEditDef   = $window.FindName('BtnEditDefinition')
 $btnOpenState = $window.FindName('BtnOpenState')
+$adminPanel = $window.FindName('AdminPanel')
+$checklistHost = $window.FindName('ChecklistHost')
 
 function Set-Status([string]$msg) { $txtStatus.Text = $msg }
 
 # ============================================================
 # Runtime objects
 # ============================================================
+$IsAdmin = Test=IsAdmin
+if ($IsAdmin){
+	$adminPanel.Visibility = 'Visible'
+} else {
+	$adminPanel.Visibility = 'Collapsed'
+}
+
 $definition   = Load-Definition
 $currentState = $null
-$allSections  = @()
+$allSections  = New-Object 'System.Collections.Generic.List[object]'
 
-function Clear-Tabs {
-    $tabs.Items.Clear()
-    $allSections = @()
+function Clear-ChecklistHost {
+    $checklistHost.Children.Clear()
+    $script:allSections = New-Object 'System.Collections.Generic.List[object]'
 }
 
 function Update-SectionProgress {
-    foreach ($sec in $allSections) {
-        $total = $sec.Items.Count
-        $done  = ($sec.Items | Where-Object IsChecked).Count
+    foreach ($sec in $script:allSections) {
+        $total = ($sec.Items | Measure-Object).Count
+        $done  = @($sec.Items | Where-Object { $_.IsChecked }).Count
         $sec.Progress.Text = "Progress: $done / $total completed"
     }
 }
 
-function Build-Tabs([object]$state) {
-    Clear-Tabs
+function Build-ChecklistPage([object]$state) {
+    Clear-ChecklistHost
 
     foreach ($section in $definition.sections) {
+
+        # Section header
+        $hdr = New-Object System.Windows.Controls.TextBlock
+        $hdr.Text = [string]$section.name
+        $hdr.FontSize = 16
+        $hdr.FontWeight = 'Bold'
+        $hdr.Margin = '0,10,0,6'
+        $hdr.Foreground = [Windows.Media.Brushes]::White
+        $checklistHost.Children.Add($hdr) | Out-Null
+
+        # Progress line
+        $progress = New-Object System.Windows.Controls.TextBlock
+        $progress.Margin = '0,0,0,10'
+        $progress.Foreground = [Windows.Media.Brushes]::LightSteelBlue
+        $progress.FontSize = 12
+        $checklistHost.Children.Add($progress) | Out-Null
+
+        # Items collection
         $items = New-Object 'System.Collections.ObjectModel.ObservableCollection[ChecklistItem]'
 
         foreach ($it in $section.items) {
-            Ensure-ItemState $state $it.id
-            $st = $state.itemStates.$($it.id)
+            Ensure-ItemState $state ([string]$it.id)
+            $st = Get-ItemStateEntry -state $state -id ([string]$it.id)
 
             $ci = New-Object ChecklistItem
             $ci.Id         = [string]$it.id
@@ -240,8 +332,8 @@ function Build-Tabs([object]$state) {
 
                 if (-not $currentState) { return }
 
-                Ensure-ItemState $currentState $sender.Id
-                $entry = $currentState.itemStates.$($sender.Id)
+                Ensure-ItemState $currentState ([string]$sender.Id)
+                $entry = Get-ItemStateEntry -state $currentState -id ([string]$sender.Id)
 
                 if ($args.PropertyName -eq 'IsChecked') {
                     $entry.isChecked = [bool]$sender.IsChecked
@@ -258,6 +350,7 @@ function Build-Tabs([object]$state) {
                     $entry.notes = [string]$sender.Notes
                 }
 
+                Set-ItemStateEntry -state $currentState -id ([string]$sender.Id) -value $entry
                 Save-State $currentState
                 Set-Status "Saved: $($currentState.changeId)"
                 Update-SectionProgress
@@ -266,36 +359,18 @@ function Build-Tabs([object]$state) {
             $items.Add($ci)
         }
 
-        $tab = New-Object System.Windows.Controls.TabItem
-        $tab.Header = [string]$section.name
-
-        $sv = New-Object System.Windows.Controls.ScrollViewer
-        $sv.VerticalScrollBarVisibility = 'Auto'
-        $sv.HorizontalScrollBarVisibility = 'Disabled'
-
-        $panel = New-Object System.Windows.Controls.StackPanel
-        $panel.Margin = '0,12,0,0'
-
-        $progress = New-Object System.Windows.Controls.TextBlock
-        $progress.Margin = '0,0,0,12'
-        $progress.Foreground = [Windows.Media.Brushes]::LightSteelBlue
-        $progress.FontSize = 12
-        $panel.Children.Add($progress) | Out-Null
-
+        # ItemsControl for this section
         $ic = New-Object System.Windows.Controls.ItemsControl
         $ic.ItemsSource = $items
         $ic.ItemTemplate = $window.Resources['ChecklistItemTemplate']
-        $panel.Children.Add($ic) | Out-Null
+        $checklistHost.Children.Add($ic) | Out-Null
 
-        $sv.Content = $panel
-        $tab.Content = $sv
-        $tabs.Items.Add($tab) | Out-Null
-
-        $allSections += [pscustomobject]@{
+        # Track for progress updates
+        $script:allSections.Add([pscustomobject]@{
             Name     = [string]$section.name
             Items    = $items
             Progress = $progress
-        }
+        }) | Out-Null
     }
 
     Update-SectionProgress
@@ -331,10 +406,10 @@ function Load-Change([string]$ChangeId) {
     }
 
     # Title
-    $txtTitle.Text = "$([string]$definition.title) — $id"
+    $txtTitle.Text = "$([string]$definition.title) $Dash $id"
 
     # Build UI
-    Build-Tabs $currentState
+    Build-ChecklistPage $currentState
 
     # Restore window geometry (per ChangeID)
     if ($currentState.window.width -and $currentState.window.height) {
