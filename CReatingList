@@ -1,65 +1,197 @@
-Pre Change Request
-* NOTE: Can start these steps starting 26 Jan *
-
-Create Change Request at least 2 weeks prior. Assign your name to the ctasks under the workflow tab after
-you submit, but before requesting approval.
-
-Send site email notice at least 2 weeks prior.
-
-Create a list of active Network Locations that utilize the old VHAxxxIA/IU accounts.
-{Cookbook - Password Change (version 1.7) - Network Locations (2005.2)}
-Contact respective system owners to coordinate adding the new OITxxxIA/IU accounts.
-
-Validate new OIT accounts have access to image shares. {Image Share Permissions}
-
-Schedule date/time with the Clinicomp personnel to add the new OITxxxIA/IU post account reconciliation
-actions.
-** NOTE: Do not edit nor remove the VHA accounts at this time **
-
-
-
-Begin Implementation on the Change Request
-*NOTE: These tasks can be completed during business hours. Each row can be done independently.*
-
-Cookbook - Password Change (version 1.?).pdf
-Reconcile your OITxxxIA/IU/IU2 accounts (add them to your KeePass and RDCM). {Reconcile Accounts} Close the 2
-related ctasks.
-
-Cookbook - Change IA and IU accounts (ver 1.?).pdf
- Add new security group (OITAppAdminsCIT3SVC) to the local Administrators and Users groups on BGPs and DIGs/TXTs
-servers. {Server Permissions}
- Add (OITServerAdminsCIT3) security group to all servers’ local Users group.
-
-Add va\oitXXXia with full control permissions to C:\DICOM and C:\DICOM\Image_In folders. {Server Permissions}
-
-Create C:\DICOM\Scratch folders on all DIGs/TXT servers. Confirm both IA accounts have full control perms. {Update
-Scratch Directory}
-
-Update the Scratch folder in MUMPs on DIGs/TXTs servers {Update Scratch Directory}
-
-Update any Network Locations annotated previously utilizing the old VHAxxxIA/IU {Network Locations (2005.2)}
-
- Update Apache Tomcat credentials on HDIGs and VIX {Apache Tomcat}
- Update the IRIS service using the new OITxxxIA account {Intersystems (IRIS service)}
- Signout of the servers, update your RDCM with the new OITxxxIA credentials, sign in with the new account and restart
-services (verify everything runs correctly) {Final Steps}
-** Note: You’ll need to copy your startup shortcuts from your VHAxxxIA desktop onto the OITxxxIA desktop. Map your F
-drive. You may also need to update Iris terminal settings, see Appendix A **
-
-Update Iris Management Portal Accounts. {IRIS Management Portal}
-
-Update Lighthouse Web Interface account passwords. {Lighthouse Web Interface}
-
-Update Compass Web Interface account passwords. {Compass Web Interface}
-
-Update VA\OITxxxIU credentials in BGP Imaging Site Parameters. {Background Processor}
-** NOTE: Do this early in the morning **
-
-Cookbook - Password Change (version 1.?).pdf
-*NOTE: These tasks must be completed during your scheduled downtime.*
-
-Change the VistA Verify Code, Method 1 using OITxxxIU2 password for your Verify. {VistA Service Account}
-*Note* site may need to rerun the HDIG Installation Wizard to update the VistA credentials.
-Restart services. {Final Steps}
-Update MSP indicating which accounts to reference in CyberArk.
-Close out any open ctasks. Select Review and close any open ctasks to close the Change Request.
+{
+  "definitionId": "default",
+  "definitionVersion": 1,
+  "title": "Change Checklist",
+  "sections": [
+    {
+      "name": "Pre Change Request",
+      "items": [
+        {
+          "id": "pre-001",
+          "text": "NOTE: Can start these steps starting 26 Jan",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-002",
+          "text": "Create Change Request at least 2 weeks prior. Assign your name to the ctasks under the workflow tab after you submit, but before requesting approval.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-003",
+          "text": "Send site email notice at least 2 weeks prior.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-004",
+          "text": "Create a list of active Network Locations that utilize the old VHAxxxIA/IU accounts.",
+          "linkText": "Cookbook - Password Change (version 1.7) - Network Locations (2005.2)",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-005",
+          "text": "Contact respective system owners to coordinate adding the new OITxxxIA/IU accounts.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-006",
+          "text": "Validate new OIT accounts have access to image shares.",
+          "linkText": "Image Share Permissions",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-007",
+          "text": "Schedule date/time with the Clinicomp personnel to add the new OITxxxIA/IU post account reconciliation actions.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "pre-008",
+          "text": "NOTE: Do not edit nor remove the VHA accounts at this time",
+          "linkText": "",
+          "linkUrl": ""
+        }
+      ]
+    },
+    {
+      "name": "Begin Implementation on the Change Request",
+      "items": [
+        {
+          "id": "impl-001",
+          "text": "NOTE: These tasks can be completed during business hours. Each row can be done independently.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-002",
+          "text": "Cookbook - Password Change (version 1.?).pdf",
+          "linkText": "Cookbook - Password Change (version 1.?)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-003",
+          "text": "Reconcile your OITxxxIA/IU/IU2 accounts (add them to your KeePass and RDCM). Close the 2 related ctasks.",
+          "linkText": "Reconcile Accounts",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-004",
+          "text": "Cookbook - Change IA and IU accounts (ver 1.?).pdf",
+          "linkText": "Cookbook - Change IA and IU accounts (ver 1.?)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-005",
+          "text": "Add new security group (OITAppAdminsCIT3SVC) to the local Administrators and Users groups on BGPs and DIGs/TXTs servers.",
+          "linkText": "Server Permissions",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-006",
+          "text": "Add (OITServerAdminsCIT3) security group to all servers’ local Users group.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-007",
+          "text": "Add va\\oitXXXia with full control permissions to C:\\DICOM and C:\\DICOM\\Image_In folders.",
+          "linkText": "Server Permissions",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-008",
+          "text": "Create C:\\DICOM\\Scratch folders on all DIGs/TXT servers. Confirm both IA accounts have full control perms.",
+          "linkText": "Update Scratch Directory",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-009",
+          "text": "Update the Scratch folder in MUMPs on DIGs/TXTs servers",
+          "linkText": "Update Scratch Directory",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-010",
+          "text": "Update any Network Locations annotated previously utilizing the old VHAxxxIA/IU",
+          "linkText": "Network Locations (2005.2)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-011",
+          "text": "Update Apache Tomcat credentials on HDIGs and VIX",
+          "linkText": "Apache Tomcat",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-012",
+          "text": "Update the IRIS service using the new OITxxxIA account",
+          "linkText": "Intersystems (IRIS service)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-013",
+          "text": "Signout of the servers, update your RDCM with the new OITxxxIA credentials, sign in with the new account and restart services (verify everything runs correctly). NOTE: You’ll need to copy your startup shortcuts from your VHAxxxIA desktop onto the OITxxxIA desktop. Map your F drive. You may also need to update Iris terminal settings, see Appendix A.",
+          "linkText": "Final Steps",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-014",
+          "text": "Update Iris Management Portal Accounts.",
+          "linkText": "IRIS Management Portal",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-015",
+          "text": "Update Lighthouse Web Interface account passwords.",
+          "linkText": "Lighthouse Web Interface",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-016",
+          "text": "Update Compass Web Interface account passwords.",
+          "linkText": "Compass Web Interface",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-017",
+          "text": "Update VA\\OITxxxIU credentials in BGP Imaging Site Parameters. NOTE: Do this early in the morning.",
+          "linkText": "Background Processor",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-018",
+          "text": "Cookbook - Password Change (version 1.?).pdf NOTE: These tasks must be completed during your scheduled downtime.",
+          "linkText": "Cookbook - Password Change (version 1.?)",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-019",
+          "text": "Change the VistA Verify Code, Method 1 using OITxxxIU2 password for your Verify. Note: site may need to rerun the HDIG Installation Wizard to update the VistA credentials.",
+          "linkText": "VistA Service Account",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-020",
+          "text": "Restart services.",
+          "linkText": "Final Steps",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-021",
+          "text": "Update MSP indicating which accounts to reference in CyberArk.",
+          "linkText": "",
+          "linkUrl": ""
+        },
+        {
+          "id": "impl-022",
+          "text": "Close out any open ctasks. Select Review and close any open ctasks to close the Change Request.",
+          "linkText": "",
+          "linkUrl": ""
+        }
+      ]
+    }
+  ]
+}
