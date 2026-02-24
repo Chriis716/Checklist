@@ -1,30 +1,19 @@
-function Test-IsAdmin {
-    try {
-        $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $wp = New-Object Security.Principal.WindowsPrincipal($wi)
-
-        # 1) Keep local Administrator check
-        if ($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { 
-            return $true 
-        }
-
-        # 2) Explicit user whitelist (DOMAIN\username format)
-        $AdminUsers = @(
-            'VHA\jsmith'
-            'VHA\adoe'
-            'VHA\mbrown'
-            'VHA\csivi'
-        )
-
-        $currentUser = $wi.Name
-
-        if ($AdminUsers -contains $currentUser) {
-            return $true
-        }
-
-        return $false
+{
+  "changeId": "CHG0030123",
+  "definitionId": "default",
+  "definitionVersion": 1,
+  "savedUtc": "2026-02-24T14:35:22.481Z",
+  "itemStates": {
+    "pre-001": {
+      "isChecked": true,
+      "checkedUtc": "2026-02-24T14:32:10.103Z",
+      "notes": "Pre-change validation completed prior to implementation.\r\n\r\n• Verified full backup completed successfully\r\n• Snapshot confirmed on all impacted servers\r\n• Confirmed maintenance window with stakeholders\r\n• Reviewed rollback plan and tested access\r\n\r\nNo issues identified during pre-check. Ready to proceed."
     }
-    catch {
-        return $false
-    }
+  },
+  "window": {
+    "top": 120,
+    "left": 250,
+    "width": 1100,
+    "height": 760
+  }
 }
