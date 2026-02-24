@@ -1,0 +1,65 @@
+Pre Change Request
+* NOTE: Can start these steps starting 26 Jan *
+
+Create Change Request at least 2 weeks prior. Assign your name to the ctasks under the workflow tab after
+you submit, but before requesting approval.
+
+Send site email notice at least 2 weeks prior.
+
+Create a list of active Network Locations that utilize the old VHAxxxIA/IU accounts.
+{Cookbook - Password Change (version 1.7) - Network Locations (2005.2)}
+Contact respective system owners to coordinate adding the new OITxxxIA/IU accounts.
+
+Validate new OIT accounts have access to image shares. {Image Share Permissions}
+
+Schedule date/time with the Clinicomp personnel to add the new OITxxxIA/IU post account reconciliation
+actions.
+** NOTE: Do not edit nor remove the VHA accounts at this time **
+
+
+
+Begin Implementation on the Change Request
+*NOTE: These tasks can be completed during business hours. Each row can be done independently.*
+
+Cookbook - Password Change (version 1.?).pdf
+Reconcile your OITxxxIA/IU/IU2 accounts (add them to your KeePass and RDCM). {Reconcile Accounts} Close the 2
+related ctasks.
+
+Cookbook - Change IA and IU accounts (ver 1.?).pdf
+ Add new security group (OITAppAdminsCIT3SVC) to the local Administrators and Users groups on BGPs and DIGs/TXTs
+servers. {Server Permissions}
+ Add (OITServerAdminsCIT3) security group to all servers’ local Users group.
+
+Add va\oitXXXia with full control permissions to C:\DICOM and C:\DICOM\Image_In folders. {Server Permissions}
+
+Create C:\DICOM\Scratch folders on all DIGs/TXT servers. Confirm both IA accounts have full control perms. {Update
+Scratch Directory}
+
+Update the Scratch folder in MUMPs on DIGs/TXTs servers {Update Scratch Directory}
+
+Update any Network Locations annotated previously utilizing the old VHAxxxIA/IU {Network Locations (2005.2)}
+
+ Update Apache Tomcat credentials on HDIGs and VIX {Apache Tomcat}
+ Update the IRIS service using the new OITxxxIA account {Intersystems (IRIS service)}
+ Signout of the servers, update your RDCM with the new OITxxxIA credentials, sign in with the new account and restart
+services (verify everything runs correctly) {Final Steps}
+** Note: You’ll need to copy your startup shortcuts from your VHAxxxIA desktop onto the OITxxxIA desktop. Map your F
+drive. You may also need to update Iris terminal settings, see Appendix A **
+
+Update Iris Management Portal Accounts. {IRIS Management Portal}
+
+Update Lighthouse Web Interface account passwords. {Lighthouse Web Interface}
+
+Update Compass Web Interface account passwords. {Compass Web Interface}
+
+Update VA\OITxxxIU credentials in BGP Imaging Site Parameters. {Background Processor}
+** NOTE: Do this early in the morning **
+
+Cookbook - Password Change (version 1.?).pdf
+*NOTE: These tasks must be completed during your scheduled downtime.*
+
+Change the VistA Verify Code, Method 1 using OITxxxIU2 password for your Verify. {VistA Service Account}
+*Note* site may need to rerun the HDIG Installation Wizard to update the VistA credentials.
+Restart services. {Final Steps}
+Update MSP indicating which accounts to reference in CyberArk.
+Close out any open ctasks. Select Review and close any open ctasks to close the Change Request.
