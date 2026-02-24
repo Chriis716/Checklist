@@ -1,22 +1,12 @@
-<CheckBox Grid.Column="0"
-          VerticalAlignment="Top"
-          IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-          Margin="2,2,0,0"
-          Checked="ChecklistCheckBox_Changed"
-          Unchecked="ChecklistCheckBox_Changed"/>
+function Update-SectionProgress {
 
-$window.AddHandler(
-    [System.Windows.Controls.Primitives.ToggleButton]::CheckedEvent,
-    [System.Windows.RoutedEventHandler]{
-        param($sender, $e)
-        Update-SectionProgress
-    }
-)
+    if (-not $window -or -not $window.Dispatcher) { return }
 
-$window.AddHandler(
-    [System.Windows.Controls.Primitives.ToggleButton]::UncheckedEvent,
-    [System.Windows.RoutedEventHandler]{
-        param($sender, $e)
-        Update-SectionProgress
-    }
-)
+    $window.Dispatcher.BeginInvoke([Action]{
+        foreach ($sec in $script:allSections) {
+            $total = ($sec.Items | Measure-Object).Count
+            $done  = @($sec.Items | Where-Object { $_.IsChecked -eq $true }).Count
+            $sec.Progress.Text = "Progress: $done / $total completed"
+        }
+    }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
+}
