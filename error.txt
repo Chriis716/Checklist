@@ -1,6 +1,6 @@
-Exception calling "Invoke" with "2" argument(s): "Exception calling "Invoke" with "2" argument(s): "Cannot perform this operation while dispatcher processing is suspended.""
-At C:\Temp\CreateCheckList\CreateCheckList.ps1:316 char:5
-+     $window.Dispatcher.Invoke([Action]{
-+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Exception calling "ShowDialog" with "0" argument(s): "Failed to create a 'Checked' from the text 'ChecklistCheckBox_Changed'."
+At C:\Temp\CreateCheckList\CreateCheckList.ps1:536 char:1
++ $null = $window.ShowDialog()
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
     + FullyQualifiedErrorId : XamlParseException
