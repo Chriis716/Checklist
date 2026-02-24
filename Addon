@@ -1,0 +1,29 @@
+function Get-ItemStateEntry([object]$state, [string]$id) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return $null }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
+}
+
+function Set-ItemStateEntry([object]$state, [string]$id, [object]$value) {
+    if (-not $state -or [string]::IsNullOrWhiteSpace($id)) { return }
+    $prop = $state.itemStates.PSObject.Properties[$id]
+    if ($null -eq $prop) {
+        $state.itemStates | Add-Member -MemberType NoteProperty -Name $id -Value $value
+    } else {
+        $prop.Value = $value
+    }
+}
+
+function Ensure-ItemState([object]$state, [string]$id) {
+    if (-not $state) { return }
+    if ([string]::IsNullOrWhiteSpace($id)) { return }
+
+    if ($null -eq (Get-ItemStateEntry -state $state -id $id)) {
+        Set-ItemStateEntry -state $state -id $id -value ([pscustomobject]@{
+            isChecked  = $false
+            checkedUtc = $null
+            notes      = ""
+        })
+    }
+}
